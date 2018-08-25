@@ -67,14 +67,17 @@ class GoBoard(val row: Int, val col: Int) {
   }
 
   private def removeString(goString: GoString): Unit =
-    for (point <- goString.stones) {
-      // Removing a string can create liberties for other strings.
-      for (neighbor <- neighborMap((point._1, point._1)) if grid.get(neighbor.toCoords).isDefined) {
-        val neighborString = grid.get(neighbor.toCoords)
-        if (neighborString.get.equals(goString))
-          this.replaceString(neighborString.get.withLiberty(Point(point._1, point._2)))
+    goString.stones.foreach { point =>
+      neighborMap((point._1, point._1)).foreach { neighbor =>
+        getGoString(neighbor) match {
+          case Some(neighborString) if neighborString == goString =>
+            this.replaceString(neighborString.withLiberty(Point(point._1, point._2)))
+          case _ => ()
+        }
+
         grid.remove(point)
       }
+
       hash ^= ZobristHashing.ZOBRIST((point._1, point._2, Some(goString.player))) //Remove filled point hash code.
       hash ^= ZobristHashing.ZOBRIST((point._1, point._2, None)) //Add empty point hash code.
     }
@@ -85,31 +88,26 @@ class GoBoard(val row: Int, val col: Int) {
 
   def isSelfCapture(player: Player, point: Point): Boolean = {
     val friendlyStrings: ListBuffer[GoString] = ListBuffer.empty[GoString]
+
     for (neighbor <- neighborMap((point.row, point.col))) {
-      val neighborString = grid.get(neighbor.toCoords)
-      if (neighborString.isEmpty)
-        return false
-      else if (neighborString.get.player == player)
-        friendlyStrings += neighborString.get
-      else if (neighborString.get.numLiberties == 1)
-        return false
+      grid.get(neighbor.toCoords) match {
+        case None                                                     => return false
+        case Some(neighborString) if neighborString.player == player  => friendlyStrings += neighborString
+        case Some(neighborString) if neighborString.numLiberties == 1 => return false
+        case _                                                        => ()
+      }
     }
-    var allNeighborsInDanger = true
-    for (neighbor: GoString <- friendlyStrings)
-      if (neighbor.numLiberties != 1) allNeighborsInDanger = false
-    if (allNeighborsInDanger) return true
-    false
+
+    friendlyStrings.forall(_.numLiberties == 1)
   }
 
-  def willCapture(player: Player, point: Point): Boolean = {
-    for (neighbor <- neighborMap((point.row, point.col))
-         if grid.get(neighbor.toCoords).isDefined && grid(neighbor.toCoords).player != player) {
-      val neighborString = grid(neighbor.toCoords)
-      if (neighborString.numLiberties == 1)
-        return true
+  def willCapture(player: Player, point: Point): Boolean =
+    neighborMap((point.row, point.col)).exists {
+      getGoString(_) match {
+        case Some(neighborString) if neighborString.player != player && neighborString.numLiberties == 1 => true
+        case _                                                                                           => false
+      }
     }
-    false
-  }
 
   def isOnGrid(point: Point): Boolean = 1 <= point.row && point.row <= row && 1 <= point.col && point.col <= col
 

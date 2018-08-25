@@ -85,7 +85,7 @@ class GameState(
       move match {
         case Move.Resign | Move.Pass => true
         case Move.Play(point) =>
-          this.board.getColor(point).isEmpty &&
+          this.board.getPlayer(point).isEmpty &&
           !this.isMoveSelfCapture(nextPlayer, move) &&
           !this.doesMoveViolateKo(nextPlayer, move)
       }
@@ -123,7 +123,7 @@ object GameState {
 
   def newGame(boardHeight: Int, boardWidth: Int): GameState = {
     val board = GoBoard(boardHeight, boardWidth)
-    new GameState(board, Player(PlayerColor.Black), None, None)
+    new GameState(board, BlackPlayer, None, None)
   }
 
 }

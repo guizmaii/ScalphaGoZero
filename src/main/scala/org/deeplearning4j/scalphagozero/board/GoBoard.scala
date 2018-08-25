@@ -67,14 +67,17 @@ class GoBoard(val row: Int, val col: Int) {
   }
 
   private def removeString(goString: GoString): Unit =
-    for (point <- goString.stones) {
-      // Removing a string can create liberties for other strings.
-      for (neighbor <- neighborMap((point._1, point._1)) if grid.get(neighbor.toCoords).isDefined) {
-        val neighborString = grid.get(neighbor.toCoords)
-        if (neighborString.get.equals(goString))
-          this.replaceString(neighborString.get.withLiberty(Point(point._1, point._2)))
+    goString.stones.foreach { point =>
+      neighborMap((point._1, point._1)).foreach { neighbor =>
+        getGoString(neighbor) match {
+          case Some(neighborString) if neighborString == goString =>
+            this.replaceString(neighborString.withLiberty(Point(point._1, point._2)))
+          case _ => ()
+        }
+
         grid.remove(point)
       }
+
       hash ^= ZobristHashing.ZOBRIST((point._1, point._2, Some(goString.player))) //Remove filled point hash code.
       hash ^= ZobristHashing.ZOBRIST((point._1, point._2, None)) //Add empty point hash code.
     }
